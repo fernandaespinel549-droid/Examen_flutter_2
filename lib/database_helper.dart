@@ -1,58 +1,54 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
-import 'package:sqflite_common_ffi_web/sqflite_ffi_web.dart';
 import 'package:path/path.dart';
 import 'person.dart';
 
-// Flag to track if FFI has been initialized
-bool _ffiInitialized = false;
-
-// Initialize FFI for different platforms
-void initFfi() {
-  if (_ffiInitialized) return;
-  _ffiInitialized = true;
-
-  // For web (not Windows, Linux, MacOS, iOS, or Android)
-  if (!Platform.isWindows &&
-      !Platform.isLinux &&
-      !Platform.isMacOS &&
-      !Platform.isIOS &&
-      !Platform.isAndroid) {
-    // Use web version
-    databaseFactory = databaseFactoryFfiWeb;
+// Inicializar FFI según la plataforma
+Future<void> initializeDatabase() async {
+  if (kIsWeb) {
+    // Para web, usar la implementación por defecto de sqflite
+    // No necesita configuración adicional
     return;
-  }
-
-  // For desktop platforms
-  if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+  } else if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+    // Para escritorio, inicializar FFI
     sqfliteFfiInit();
     databaseFactory = databaseFactoryFfi;
   }
+  // Para móvil (Android/iOS), sqflite funciona por defecto
 }
 
 class DatabaseHelper {
   static final DatabaseHelper instance = DatabaseHelper._init();
   static Database? _database;
+  static bool _isInitialized = false;
 
   DatabaseHelper._init();
 
+  // Obtener instancia de base de datos (patrón singleton)
   Future<Database> get database async {
     if (_database != null) return _database!;
+
+    // Inicializar solo una vez
+    if (!_isInitialized) {
+      await initializeDatabase();
+      _isInitialized = true;
+    }
+
     _database = await _initDB('personas.db');
     return _database!;
   }
 
+  // Inicializar base de datos
   Future<Database> _initDB(String filePath) async {
-    // Initialize FFI for the appropriate platform
-    initFfi();
-
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, filePath);
 
     return await openDatabase(path, version: 1, onCreate: _createDB);
   }
 
+  // Crear tablas de base de datos
   Future<void> _createDB(Database db, int version) async {
     await db.execute('''
 CREATE TABLE personas(
@@ -66,6 +62,7 @@ ciudad TEXT NOT NULL
 ''');
   }
 
+  // Insertar una nueva persona en la base de datos
   Future<int> insertPerson(Person person) async {
     final db = await database;
     return await db.insert(
@@ -75,11 +72,13 @@ ciudad TEXT NOT NULL
     );
   }
 
+  // Obtener todas las personas de la base de datos
   Future<List<Map<String, dynamic>>> getPersons() async {
     final db = await database;
     return await db.query('personas', orderBy: 'id DESC');
   }
 
+  // Eliminar una persona por ID
   Future<int> deletePerson(int id) async {
     final db = await database;
     return await db.delete('personas', where: 'id = ?', whereArgs: [id]);

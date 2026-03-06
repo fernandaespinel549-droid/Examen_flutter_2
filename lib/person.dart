@@ -1,3 +1,5 @@
+// Modelo de datos para una persona
+// Representa la estructura de los datos de una persona en la aplicación
 class Person {
   int? id;
   String nombre;
@@ -6,6 +8,8 @@ class Person {
   int edad;
   String ciudad;
 
+  // Constructor de la clase Person
+  // id es opcional ya que se genera automáticamente en la base de datos
   Person({
     this.id,
     required this.nombre,
@@ -15,6 +19,7 @@ class Person {
     required this.ciudad,
   });
 
+  // Convierte el objeto Person a un mapa para almacenar en SQLite
   Map<String, dynamic> toMap() {
     return {
       if (id != null) 'id': id,
